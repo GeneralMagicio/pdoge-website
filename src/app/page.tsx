@@ -17,8 +17,12 @@ const Landing = () => {
         </div>
         <p className="text-white text-4xl my-8 font-[800] z-[4]"> The DOGE Police </p>
         <div className="flex gap-4 mt-2">
-          <button className="bg-primary text-white font-bold w-36 h-8 rounded-md z-[4] hover:bg-purple-700"> Buy </button>
           <button className="bg-primary text-white font-bold w-36 h-8 rounded-md z-[4] hover:bg-purple-700"> Memepaper </button>
+          <button className="bg-primary text-white font-bold w-36 h-8 rounded-md z-[4] hover:bg-purple-700"> 
+            <a href="https://app.uniswap.org/explore/tokens/polygon/0x8de88458e33e28bce366298a6f4f39fe16e72aa5" target="_blank">
+              Buy
+            </a>  
+          </button>
           <button className="bg-primary text-white font-bold w-36 h-8 rounded-md z-[4] hover:bg-purple-700"> 
             <a href="https://x.com/PolygonDoge" target="_blank">
               X (Twitter) 
