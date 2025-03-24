@@ -35,6 +35,9 @@ const Header: FC = () => {
           />
         </div>
         <span className="text-white font-bold text-xl">PolyDoge</span>
+        <a target='_blank' href='/ai'>
+          <button className='ml-8 bg-primary p-2 text-white rounded-md font-bold hover:bg-purple-600'> AI Model </button>
+        </a>
       </div>
 
       {/* Navigation Menu */}
