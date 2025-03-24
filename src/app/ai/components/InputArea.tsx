@@ -54,13 +54,13 @@ export default function InputArea({ onSendMessage, isLoading }: InputAreaProps) 
       </div>
       <div className="flex justify-between items-center mt-3">
         <p className="text-xs text-gray-500">
-          AI will analyze token contracts for vulnerabilities. Max response: 1000 tokens.
+          AI will analyze token contracts for vulnerabilities.
         </p>
         <div className="flex items-center text-xs text-gray-500">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          Enter solidity code only
+          Enter token contract code only
         </div>
       </div>
     </form>

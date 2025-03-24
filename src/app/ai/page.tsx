@@ -12,7 +12,7 @@ export default function AIPage() {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-[#9654d2]">Smart Contract Security Analyzer</h1>
-            <p className="text-gray-600">Powered by GPT-4o-mini AI</p>
+            {/* <p className="text-gray-600">Powered by GPT-4o-mini AI</p> */}
           </div>
         </div>
         <ContractAnalyzer />

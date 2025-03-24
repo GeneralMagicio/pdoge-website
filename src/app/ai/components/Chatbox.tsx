@@ -77,7 +77,7 @@ export default function ContractAnalyzer() {
         </div>
         <div className="flex items-center text-xs bg-white bg-opacity-20 rounded-full px-3 py-1">
           <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-          GPT-4o-mini
+          PolyDoge AI
         </div>
       </div>
       
