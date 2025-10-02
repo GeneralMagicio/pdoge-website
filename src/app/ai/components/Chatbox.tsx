@@ -7,6 +7,8 @@ import InputArea from './InputArea';
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  metrics?: { key: string; label: string; value: string }[];
+  verdictLine?: string | null;
 }
 
 export default function ContractAnalyzer() {
@@ -49,7 +51,12 @@ export default function ContractAnalyzer() {
       const data = await response.json();
       
       if (response.ok) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: data.message }]);
+        // Extract final verdict line from message if present
+        const contentStr: string = data.message || '';
+        const verdictMatch = contentStr.match(/^FINAL VERDICT:.*$/im);
+        const verdictLine = verdictMatch ? verdictMatch[0] : null;
+        const metrics = Array.isArray(data.metrics) ? data.metrics : undefined;
+        setMessages((prev) => [...prev, { role: 'assistant', content: contentStr, metrics, verdictLine }]);
       } else {
         setMessages((prev) => [
           ...prev,

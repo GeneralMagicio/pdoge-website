@@ -1,10 +1,14 @@
 import { ReactNode } from 'react';
 import VulnerabilityCard from './VulnerabilityCard';
+import TopMetricsBox from './TopMetricsBox';
+import VerdictBanner from './VerdictBanner';
 
 interface MessageProps {
   message: {
     role: 'user' | 'assistant';
     content: string;
+    metrics?: { key: string; label: string; value: string }[];
+    verdictLine?: string | null;
   };
 }
 
@@ -17,6 +21,7 @@ const parseVulnerabilities = (content: string): { severity: number; text: string
   for (let section of sections) {
     section = section.trim();
     if (!section) continue;
+    if (/^FINAL VERDICT:/i.test(section)) continue; // Do not treat verdict as a vulnerability
     
     // Look for severity indicators
     const severityMatch = section.match(/(?:Severity[:\s-]*(\d+(?:\.\d+)?)\s*\/\s*10|Severity[:\s-]*(\d+(?:\.\d+)?))/i);
@@ -58,6 +63,12 @@ export default function Message({ message }: MessageProps) {
     
     messageContent = (
       <div className="space-y-4">
+        {Array.isArray(message.metrics) && message.metrics.length > 0 && (
+          <TopMetricsBox metrics={message.metrics} />
+        )}
+        {message.verdictLine && (
+          <VerdictBanner verdictLine={message.verdictLine} />
+        )}
         {vulnerabilities.map((vulnerability, index) => (
           <VulnerabilityCard 
             key={index}
