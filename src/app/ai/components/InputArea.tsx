@@ -24,7 +24,7 @@ export default function InputArea({ onSendMessage, isLoading }: InputAreaProps) 
         <textarea
           className="w-full p-4 pr-24 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9654d2] focus:border-transparent resize-none shadow-sm transition-all"
           rows={4}
-          placeholder="Paste your token contract code here..."
+          placeholder="Enter token address (0x...) — or paste contract code if you prefer"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={isLoading}
@@ -60,7 +60,7 @@ export default function InputArea({ onSendMessage, isLoading }: InputAreaProps) 
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          Enter token contract code only
+          Enter token contract address (0x...)
         </div>
       </div>
     </form>

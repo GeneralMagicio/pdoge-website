@@ -13,7 +13,7 @@ export default function ContractAnalyzer() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Paste your cryptocurrency token contract code here, and I\'ll analyze it for potential vulnerabilities.',
+      content: 'Enter a token contract address (0x...) or paste the contract code. I\'ll fetch metadata (holders, liquidity/TVL, age, distribution) and analyze risks.',
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
