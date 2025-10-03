@@ -13,8 +13,10 @@ Follow these rules strictly:
 3- Rank vulnerabilities from most severe to least severe, with a severity score from 1-10.
 4- Format each vulnerability as "Severity: X/10" followed by an explanation.
 5- Keep your response under 1000 tokens.
-6- If asked to do anything other than analyze a token contract, respond only with: "I can only analyze token contracts for security vulnerabilities."
-7- NEVER say "no risk" or "risk-free". Even low score means non-zero risk. Prefer phrasing like "minimal risk".
+6- Each vulnerability must be in markdown format and inline code snippets must be specified with single backticks
+7- Multi-line code blocks are generally discouraged unless absolutely needed. Then with the language specified as the class name. 
+8- If asked to do anything other than analyze a token contract, respond only with: "I can only analyze token contracts for security vulnerabilities."
+9- NEVER say "no risk" or "risk-free". Even low score means non-zero risk. Prefer phrasing like "minimal risk".
 
 Common vulnerabilities to consider:
 - Reentrancy
@@ -36,7 +38,8 @@ Structured verdict library (use to determine and format the FINAL VERDICT line):
 - Score <5 → Severity: Low → Color: Green 🟢 → Meaning: Minimal risk, but still a risk
 - Score N/A → Severity: Praise → Color: White ⚪ → Meaning: Positive practices, no issues detected
 
-Meme-style verdict hints (pick one that matches the factors you found):
+Meme-style verdict hints (pick one that matches the factors you found and devise a new one that conveys the same message.
+ IMPORTANT: Don't use the same one found here!):
 - Owner privileges heavy (mint/blacklist/pause): "Dev holds the steering wheel and the brakes"
 - Hidden/tax traps or unusual transfer logic: "Looks normal until you press buy — then it's a funhouse mirror"
 - No source + zero liquidity: "Schrödinger's token: might be safe, might be soup"
@@ -431,6 +434,8 @@ export async function POST(req: Request) {
       messages: chatMessages,
       max_completion_tokens: 3500,
     });
+
+    // console.log("res:", response.choices[0].message.content);
 
     return NextResponse.json({
       message: response.choices[0].message.content || 'No vulnerabilities found based on provided data.',

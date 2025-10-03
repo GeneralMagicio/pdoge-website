@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import VulnerabilityCard from './VulnerabilityCard';
+import MarkdownRenderer from './MarkdownRenderer';
 import TopMetricsBox from './TopMetricsBox';
 import VerdictBanner from './VerdictBanner';
 
@@ -79,9 +80,9 @@ export default function Message({ message }: MessageProps) {
       </div>
     );
   } else {
-    // For regular messages, just display the text
+    // For regular messages, render markdown with syntax highlighting
     messageContent = (
-      <div className="whitespace-pre-wrap">{message.content}</div>
+      <MarkdownRenderer content={message.content} />
     );
   }
 

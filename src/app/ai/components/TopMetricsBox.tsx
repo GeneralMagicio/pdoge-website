@@ -17,8 +17,8 @@ export default function TopMetricsBox({ metrics }: TopMetricsBoxProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {metrics.map((m) => (
           <div key={m.key} className="flex items-start">
-            <div className="text-xs text-gray-500 mr-2 mt-0.5 whitespace-nowrap">{m.label}</div>
-            <div className="text-sm text-gray-900 break-all">{m.value}</div>
+            <div className="text-xs text-gray-500 mr-2 mt-0.5 whitespace-nowrap">{`${m.label}:`}</div>
+            <div className="text-sm text-gray-900 break-all capitalize">{m.value}</div>
           </div>
         ))}
       </div>
