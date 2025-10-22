@@ -420,6 +420,9 @@ export async function POST(req: Request) {
         ? `Primary Contract Source from Sourcify (${entryFile || 'entry'}):\n\n${entrySource}\n`
         : `Source code could not be retrieved from Sourcify for this address. Analyze based on metadata and typical ERC-20 risks.\n`;
 
+      console.log("codeHeader:", codeHeader);
+      console.log("header:", header);
+
       finalUserContent = header + codeHeader;
     }
 
@@ -429,13 +432,15 @@ export async function POST(req: Request) {
       { role: 'user', content: finalUserContent }
     ];
 
+    // console.log("codeHeader:", codeHeader);
+
     const response = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
+      model: 'o4-mini',
       messages: chatMessages,
       max_completion_tokens: 3500,
     });
 
-    // console.log("res:", response.choices[0].message.content);
+    console.log("res:", response.choices[0].message);
 
     return NextResponse.json({
       message: response.choices[0].message.content || 'No vulnerabilities found based on provided data.',

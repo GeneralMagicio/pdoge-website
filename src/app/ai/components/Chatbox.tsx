@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Message from './Message';
 import InputArea from './InputArea';
+import { useWindowLocation } from '@/app/utils';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -11,7 +12,11 @@ interface Message {
   verdictLine?: string | null;
 }
 
-export default function ContractAnalyzer() {
+interface ContractAnalyzerProps {
+  initialQuery?: string;
+}
+
+export default function ContractAnalyzer({ initialQuery }: ContractAnalyzerProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -20,6 +25,8 @@ export default function ContractAnalyzer() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasAutoSentRef = useRef(false);
+  const location = useWindowLocation();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -72,6 +79,22 @@ export default function ContractAnalyzer() {
       setIsLoading(false);
     }
   };
+
+  // Auto-run analysis once if an initial query is provided (from header search)
+  useEffect(() => {
+    console.log("parameters:", initialQuery, !hasAutoSentRef.current, !isLoading, location);
+    if (initialQuery && initialQuery.trim() && !hasAutoSentRef.current && !isLoading) {
+      console.log("Entering if statement");
+      hasAutoSentRef.current = true;
+      // Slight delay to allow initial render
+      // const timer = setTimeout(() => {
+      //   console.log("sending message:", initialQuery);
+      //   sendMessage(initialQuery);
+      // }, 0);
+      sendMessage(initialQuery);
+      // return () => clearTimeout(timer);
+    }
+  }, [initialQuery, isLoading, location]);
 
   return (
     <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200">

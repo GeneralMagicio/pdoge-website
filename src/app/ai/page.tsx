@@ -1,4 +1,6 @@
-import ContractAnalyzer from "./components/Chatbox";
+// import ContractAnalyzer from "./components/Chatbox";
+import { Suspense } from "react";
+import AIPageContent from "./pageClient";
 
 export default function AIPage() {
   return (
@@ -15,7 +17,9 @@ export default function AIPage() {
             {/* <p className="text-gray-600">Powered by GPT-4o-mini AI</p> */}
           </div>
         </div>
-        <ContractAnalyzer />
+        <Suspense>
+          <AIPageContent />
+        </Suspense>
       </div>
     </div>
   );
