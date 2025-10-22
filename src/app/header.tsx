@@ -36,36 +36,39 @@ const Header: FC = () => {
 
   return (
     <>
-      <header className="relative flex w-full  items-center bg-black h-[75px] px-4">
+      <header className="relative flex w-full items-center bg-black h-[75px] px-4">
         <div className="flex items-center flex-shrink-0">
         {/* Logo Section */}
-        <div className="flex items-center">
-          <div className="relative w-10 h-10 mr-2">
-            <Image
-              src="/icon.png"
-              alt="Polydoge Logo"
-              fill
-              className="rounded-full"
-            />
+          <div className="flex items-center">
+            <div className="relative w-10 h-10 mr-2">
+              <Image
+                src="/icon.png"
+                alt="Polydoge Logo"
+                fill
+                className="rounded-full"
+              />
+            </div>
+            <span className="text-white font-bold text-xl">PolyDoge</span>
+            <a target='_blank' href='/ai'>
+              <button className='ml-3 hidden sm:inline-flex bg-primary px-3 py-2 text-white rounded-md font-bold hover:bg-purple-600'> AI Model </button>
+            </a>
           </div>
-          <span className="text-white font-bold text-xl">PolyDoge</span>
-          <a target='_blank' href='/ai'>
-            <button className='ml-3 hidden sm:inline-flex bg-primary px-3 py-2 text-white rounded-md font-bold hover:bg-purple-600'> AI Model </button>
-          </a>
+
+        {/* Navigation Menu (kept for future use) */}
+        {/* <nav className="hidden md:flex items-center space-x-2"> ... </nav> */}
         </div>
 
-        {/* Mobile search toggle */}
+        {/* Mobile search toggle - flush right on mobile */}
         <div className="ml-auto md:hidden">
           <button
             aria-label="Open search"
-            className="ml-auto text-white p-2"
+            className="text-white p-2"
             onClick={() => setMobileSearchOpen((v) => !v)}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M10 18a8 8 0 110-16 8 8 0 010 16z" />
             </svg>
           </button>
-        </div>
         </div>
 
         {/* Global Search - absolutely centered on md+ */}
