@@ -346,6 +346,7 @@ export async function POST(req: Request) {
     }
 
     let finalUserContent = content as string;
+    let tokenInfo: { address: string; name?: string; symbol?: string } | undefined;
 
     // If user sent a token address, enrich with source and metadata
     let topMetrics: TopMetric[] | undefined;
@@ -354,6 +355,13 @@ export async function POST(req: Request) {
 
       // 1) Detect chain and gather liquidity/age via DexScreener
       const dexData = await fetchDexScreener(address);
+
+      // Capture token metadata for sharing UI
+      tokenInfo = {
+        address,
+        name: dexData?.topPair?.baseToken?.name,
+        symbol: dexData?.topPair?.baseToken?.symbol,
+      };
 
       // 2) Fetch source via Sourcify if chain is known
       let entrySource = '';
@@ -426,18 +434,20 @@ export async function POST(req: Request) {
       finalUserContent = header + codeHeader;
     }
 
+    console.log("node env:", process.env.NODE_ENV);
+
     const chatMessages = [
       { role: 'user', content: SYSTEM_PROMPT },
       ...messages.slice(-4),
-      { role: 'user', content: finalUserContent }
+      { role: 'user', content: process.env.NODE_ENV === 'development' ? finalUserContent.slice(0, 1500) : finalUserContent }
     ];
 
     // console.log("codeHeader:", codeHeader);
 
     const response = await openai.chat.completions.create({
-      model: 'o4-mini',
+      model: 'gpt-5-nano',
       messages: chatMessages,
-      max_completion_tokens: 3500,
+      max_completion_tokens: 50000,
     });
 
     console.log("res:", response.choices[0].message);
@@ -445,6 +455,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       message: response.choices[0].message.content || 'No vulnerabilities found based on provided data.',
       metrics: topMetrics || [],
+      token: tokenInfo || null,
     });
   } catch (error) {
     console.error('Error analyzing contract:', error);

@@ -11,6 +11,7 @@ interface MessageProps {
     content: string;
     metrics?: { key: string; label: string; value: string }[];
     verdictLine?: string | null;
+    token?: { address: string; name?: string; symbol?: string } | null;
   };
 }
 
@@ -65,13 +66,88 @@ export default function Message({ message }: MessageProps) {
   const notPlaceholder = !placeholderRegex.test(content) && content.length > 30;
   const shouldShowShare = isAI && notPlaceholder && (hasMetrics || hasVerdict || hasAnalyticText);
 
-  const handleTweetClick = () => {
+  const handleTweetClick = async () => {
     if (!isAI) return;
-    const raw = message.content || '';
-    const singleLine = raw.replace(/\s+/g, ' ').trim();
+    const contentRaw = message.content || '';
+    const token = message.token || null;
+
+    // Parse vulnerabilities and sort by severity desc
+    const vulns = parseVulnerabilities(contentRaw)
+      .filter(v => v.text)
+      .sort((a, b) => b.severity - a.severity);
+
+    // Header lines
+    const headerLines: string[] = [];
+    headerLines.push('🚨 PDOGE CONTRACT CHECK REPORT 🚨');
+    if (token?.name || token?.symbol) {
+      const nameSym = `${token?.name || ''}${token?.name && token?.symbol ? ' ' : ''}${token?.symbol ? `(${token.symbol})` : ''}`.trim();
+      if (nameSym) headerLines.push(`🔍 Token: ${nameSym}`);
+    }
+    if (token?.address) headerLines.push(`📜 Contract: ${token.address}`);
+    headerLines.push('🔎 Findings:');
+
+    const sevEmoji = (s: number) => {
+      if (s >= 9) return '🔴';
+      if (s >= 7) return '🟠';
+      if (s >= 3) return '🟡';
+      return '🔵';
+    };
+
     const maxLen = 280;
-    const truncated = singleLine.length > maxLen ? singleLine.slice(0, maxLen - 1) + '…' : singleLine;
-    const tweetUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(truncated)}`;
+    let tweet = headerLines.join('\n');
+
+    const addLineIfFits = (line: string) => {
+      const candidate = tweet + '\n' + line;
+      if (candidate.length <= maxLen) {
+        tweet = candidate;
+        return true;
+      }
+      return false;
+    };
+
+    for (const v of vulns) {
+      const text = v.text.replace(/\s+/g, ' ').trim();
+      const withoutSeverity = text.replace(/Severity[:\s-]*\d+(?:\.\d+)?(?:\s*\/\s*10)?\s*/i, '').trim();
+      const split = withoutSeverity.split(/\s[–-]\s/);
+      const rawTitle = (split[0] || withoutSeverity).trim();
+      const rawSummary = (split[1] || withoutSeverity.slice(rawTitle.length)).trim();
+      const score = Math.round(v.severity * 10) / 10;
+      const sev = sevEmoji(v.severity);
+
+      // Prefer title – summary (score/10), then fallback to title (score/10)
+      const build = (title: string, summary?: string) => summary ? `${sev} ${title} – ${summary} (${score}/10)` : `${sev} ${title} (${score}/10)`;
+
+      // Try full line
+      const title = rawTitle.slice(0, 80);
+      const summary = rawSummary.slice(0, 160);
+      let line = build(title, summary);
+      if (addLineIfFits(line)) continue;
+
+      // Try shorten summary
+      let remaining = maxLen - (tweet.length + 1) - (build(title, '').length);
+      if (remaining > 1) {
+        const shortSummary = rawSummary.slice(0, remaining - 1) + '…';
+        line = build(title, shortSummary);
+        if (addLineIfFits(line)) continue;
+      }
+
+      // Try without summary
+      line = build(title, undefined);
+      if (addLineIfFits(line)) continue;
+
+      // Shorten title to fit minimal form
+      remaining = maxLen - (tweet.length + 1) - (build('', undefined).length);
+      if (remaining > 1) {
+        const shortTitle = rawTitle.slice(0, Math.max(0, remaining - 1)) + '…';
+        line = build(shortTitle, undefined);
+        if (addLineIfFits(line)) continue;
+      }
+
+      // No more space
+      break;
+    }
+
+    const tweetUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(tweet)}`;
     window.open(tweetUrl, '_blank', 'noopener,noreferrer');
   };
 

@@ -10,6 +10,7 @@ interface Message {
   content: string;
   metrics?: { key: string; label: string; value: string }[];
   verdictLine?: string | null;
+  token?: { address: string; name?: string; symbol?: string } | null;
 }
 
 interface ContractAnalyzerProps {
@@ -63,7 +64,8 @@ export default function ContractAnalyzer({ initialQuery }: ContractAnalyzerProps
         const verdictMatch = contentStr.match(/^FINAL VERDICT:.*$/im);
         const verdictLine = verdictMatch ? verdictMatch[0] : null;
         const metrics = Array.isArray(data.metrics) ? data.metrics : undefined;
-        setMessages((prev) => [...prev, { role: 'assistant', content: contentStr, metrics, verdictLine }]);
+        const token = data?.token ?? null;
+        setMessages((prev) => [...prev, { role: 'assistant', content: contentStr, metrics, verdictLine, token }]);
       } else {
         setMessages((prev) => [
           ...prev,
