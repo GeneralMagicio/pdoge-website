@@ -69,7 +69,7 @@ Response example:
 
 Rate limiting:
 
-- Strict: one request per API key every 15 minutes.
+- Strict: one request per API key every minute.
 - Exceeding the limit returns `429` with `Retry-After` header.
 
 Environment variables:
