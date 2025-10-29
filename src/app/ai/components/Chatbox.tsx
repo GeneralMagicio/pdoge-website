@@ -5,6 +5,7 @@ import Message from './Message';
 import FeedbackModal from './FeedbackModal';
 import InputArea from './InputArea';
 import { useWindowLocation } from '@/app/utils';
+import { AnalysisResult } from '@/server/contractAnalysis';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -12,6 +13,7 @@ interface Message {
   metrics?: { key: string; label: string; value: string }[];
   verdictLine?: string | null;
   token?: { address: string; name?: string; symbol?: string } | null;
+  vulnerabilities?: { severity: number; text: string }[];
 }
 
 interface ContractAnalyzerProps {
@@ -61,13 +63,25 @@ export default function ContractAnalyzer({ initialQuery }: ContractAnalyzerProps
       const data = await response.json();
       
       if (response.ok) {
-        // Extract final verdict line from message if present
         const contentStr: string = data.message || '';
-        const verdictMatch = contentStr.match(/^FINAL VERDICT:.*$/im);
-        const verdictLine = verdictMatch ? verdictMatch[0] : null;
         const metrics = Array.isArray(data.metrics) ? data.metrics : undefined;
         const token = data?.token ?? null;
-        setMessages((prev) => [...prev, { role: 'assistant', content: contentStr, metrics, verdictLine, token }]);
+        type ServerVuln = AnalysisResult['vulnerabilities'][number];
+        const serverVulns: { severity: number; text: string }[] = Array.isArray(data.vulnerabilities)
+          ? (data.vulnerabilities as ServerVuln[]).map((v) => {
+              const sev = Number(v?.severity) || 0;
+              const parts: string[] = [];
+              if (v?.description) parts.push(String(v.description));
+              return { severity: sev, text: parts.join(' — ') };
+            })
+          : [];
+        const explicitVerdict: string | null = typeof data?.verdictLine === 'string' ? data.verdictLine : null;
+        const verdictMatch = !explicitVerdict ? contentStr.match(/^FINAL VERDICT:.*$/im) : null;
+        const verdictLine = explicitVerdict || (verdictMatch ? verdictMatch[0] : null);
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: contentStr, metrics, verdictLine, token, vulnerabilities: serverVulns },
+        ]);
       } else {
         setMessages((prev) => [
           ...prev,

@@ -12,6 +12,7 @@ interface MessageProps {
     metrics?: { key: string; label: string; value: string }[];
     verdictLine?: string | null;
     token?: { address: string; name?: string; symbol?: string } | null;
+    vulnerabilities?: { severity: number; text: string }[];
   };
 }
 
@@ -170,8 +171,12 @@ export default function Message({ message }: MessageProps) {
     URL.revokeObjectURL(url);
   };
   
-  if (isAI && message.content.includes('Severity')) {
-    const vulnerabilities = parseVulnerabilities(message.content);
+  const serverVulns = Array.isArray(message.vulnerabilities) ? message.vulnerabilities : [];
+  const parsedVulns = parseVulnerabilities(message.content);
+  const effectiveVulns = serverVulns.length > 0 ? serverVulns : parsedVulns;
+
+  if (isAI && effectiveVulns.length > 0) {
+    const vulnerabilities = [...effectiveVulns];
     
     // Sort by severity in descending order
     vulnerabilities.sort((a, b) => b.severity - a.severity);

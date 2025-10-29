@@ -49,7 +49,29 @@ Meme-style verdict hints (pick one that matches the factors you found and devise
 At the end of your analysis output EXACTLY ONE single-line final judgment with this format (no extra lines after it):
 FINAL VERDICT: [emoji] [Severity] ([Score or N/A]/10) — [Meaning] — [Brief meme-style verdict]
 
-If source code is unavailable, analyze available metadata (e.g., taxes, ownership concentration, LP liquidity, trading restrictions) to highlight risk signals clearly.`;
+If source code is unavailable, analyze available metadata (e.g., taxes, ownership concentration, LP liquidity, trading restrictions) to highlight risk signals clearly.
+
+IMPORTANT OUTPUT FORMAT RULES:
+- You MUST output ONLY a single valid JSON object. Do not include markdown, headers, or extra commentary.
+- The JSON MUST follow this schema (property order does not matter):
+  {
+    "vulnerabilities": [
+      {
+        "severity": number,
+        "description": string,
+      }
+    ],
+    "verdict": {
+      "score": number | null,
+      "label": "Critical" | "High" | "Medium" | "Low" | "Praise",
+      "emoji": "🔴" | "🟠" | "🟡" | "🟢" | "⚪",
+      "meaning": string,
+      "meme": string
+    },
+    "verdict_line": string
+  }
+- Descriptions must have a good structure possibly with a title, description, evidence and recommendation. Prefer 10 vulnerabilities max,
+ sorted by severity desc.`;
 
 function isAddress(text: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(text.trim());
@@ -270,10 +292,14 @@ export type AnalysisInput = {
   messages: Array<{ role: string; content: string }>;
 };
 
+type ModelVuln = { severity?: number; description?: string };
+
 export type AnalysisResult = {
   message: string;
   metrics: TopMetric[];
   token: { address: string; name?: string; symbol?: string } | null;
+  vulnerabilities: Array<Required<ModelVuln>>;
+  verdictLine?: string | null;
 };
 
 export async function performAnalysis(input: AnalysisInput): Promise<AnalysisResult> {
@@ -349,6 +375,7 @@ export async function performAnalysis(input: AnalysisInput): Promise<AnalysisRes
       message: 'I can only analyze token contracts for security vulnerabilities. Provide a contract address (0x...) or contract source code.',
       metrics: [],
       token: null,
+      vulnerabilities: [],
     };
   }
 
@@ -431,21 +458,78 @@ export async function performAnalysis(input: AnalysisInput): Promise<AnalysisRes
   }
 
   const chatMessages = [
-    { role: 'user', content: SYSTEM_PROMPT },
+    { role: 'system', content: SYSTEM_PROMPT },
     ...messages.slice(-4),
     { role: 'user', content: process.env.NODE_ENV === 'development' ? finalUserContent.slice(0, 1500) : finalUserContent }
   ];
 
   const response = await openai.chat.completions.create({
-    model: 'gpt-5-nano',
+    model: 'gpt-4.1-mini',
     messages: chatMessages as ChatCompletionMessageParam[],
-    max_completion_tokens: 50000,
+    response_format: { type: 'json_object' },
+    max_completion_tokens: 5000,
   });
 
+  const raw = response.choices?.[0]?.message?.content || '';
+
+  type ModelJson = {
+    vulnerabilities?: ModelVuln[];
+    verdict?: { score?: number | null; label?: string; emoji?: string; meaning?: string; meme?: string };
+    verdict_line?: string;
+  };
+
+  const safeParseJson = (text: string): ModelJson | null => {
+    try {
+      return JSON.parse(text) as ModelJson;
+    } catch {
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start >= 0 && end > start) {
+        try {
+          return JSON.parse(text.slice(start, end + 1)) as ModelJson;
+        } catch {}
+      }
+      return null;
+    }
+  };
+
+  const parsed = safeParseJson(raw) || {};
+
+  const uiVulns: Array<Required<ModelVuln>> = Array.isArray(parsed.vulnerabilities)
+    ? parsed.vulnerabilities
+        .filter((v): v is Required<ModelVuln> => typeof (v?.severity as number) === 'number' && !!(v?.description))
+        .map((v) => {
+          const parts: string[] = [];
+          if (v?.description) parts.push(String(v.description));
+          return {
+            severity: Number(v.severity) || 0,
+            description: v.description || '',
+          };
+        })
+    : [];
+
+  let verdictLine: string | null = null;
+  if (typeof parsed.verdict_line === 'string' && parsed.verdict_line.trim()) {
+    verdictLine = parsed.verdict_line.trim();
+  } else if (parsed.verdict) {
+    const label = parsed.verdict.label || 'Low';
+    const emoji = parsed.verdict.emoji || (label === 'Critical' ? '🔴' : label === 'High' ? '🟠' : label === 'Medium' ? '🟡' : label === 'Praise' ? '⚪' : '🟢');
+    const scoreStr = typeof parsed.verdict.score === 'number' ? `${Math.round((parsed.verdict.score + Number.EPSILON) * 10) / 10}` : 'N/A';
+    const meaning = parsed.verdict.meaning || (label === 'Critical' ? 'Very high risk, proceed only if you know what you are doing' : label === 'High' ? 'High risk, suspicious, careful evaluation needed' : label === 'Medium' ? 'Some risk factors, watch out' : label === 'Praise' ? 'Positive practices, no issues detected' : 'Minimal risk, but still a risk');
+    const meme = parsed.verdict.meme || '';
+    verdictLine = `FINAL VERDICT: ${emoji} ${label} (${scoreStr}/10) — ${meaning}${meme ? ` — ${meme}` : ''}`;
+  }
+
+  const humanMessage = uiVulns.length
+    ? `${uiVulns.length} vulnerabilities found. See structured details below.`
+    : 'No clear vulnerabilities identified from available data. See verdict and metrics.';
+
   return {
-    message: response.choices[0].message.content || 'No vulnerabilities found based on provided data.',
+    message: humanMessage,
     metrics: topMetrics || [],
     token: tokenInfo || null,
+    vulnerabilities: uiVulns,
+    verdictLine: verdictLine || null,
   };
 }
 
