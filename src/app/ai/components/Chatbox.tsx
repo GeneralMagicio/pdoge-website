@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Message from './Message';
+import FeedbackModal from './FeedbackModal';
 import InputArea from './InputArea';
 import { useWindowLocation } from '@/app/utils';
 
@@ -28,6 +29,7 @@ export default function ContractAnalyzer({ initialQuery }: ContractAnalyzerProps
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasAutoSentRef = useRef(false);
   const location = useWindowLocation();
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -130,6 +132,25 @@ export default function ContractAnalyzer({ initialQuery }: ContractAnalyzerProps
       </div>
       
       <InputArea onSendMessage={sendMessage} isLoading={isLoading} />
+      {/* Floating Feedback trigger */}
+      <button
+        type="button"
+        onClick={() => setIsFeedbackOpen(true)}
+        className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full bg-[#9654d2] text-white px-4 py-3 shadow-lg hover:bg-[#8548c8] focus:outline-none focus:ring-2 focus:ring-[#9654d2]/50"
+        aria-label="Open feedback"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+          <path d="M20 2H4a2 2 0 00-2 2v13.5A2.5 2.5 0 004.5 20H18l4 4V4a2 2 0 00-2-2zm-3 7H7a1 1 0 110-2h10a1 1 0 110 2zm0 4H7a1 1 0 110-2h10a1 1 0 110 2z" />
+        </svg>
+        <span className="hidden sm:inline">Feedback</span>
+      </button>
+
+      {/* Modal */}
+      <FeedbackModal
+        open={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
+        messages={messages.map((m) => ({ role: m.role, content: m.content }))}
+      />
     </div>
   );
 }
