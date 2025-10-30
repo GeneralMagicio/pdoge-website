@@ -172,11 +172,12 @@ export default function Message({ message }: MessageProps) {
   };
   
   const serverVulns = Array.isArray(message.vulnerabilities) ? message.vulnerabilities : [];
-  const parsedVulns = parseVulnerabilities(message.content);
-  const effectiveVulns = serverVulns.length > 0 ? serverVulns : parsedVulns;
+  const parsedVulns = parseVulnerabilities(message.content).filter(v => v.severity > 0);
+  const shouldRenderParsed = hasAnalyticText && notPlaceholder && parsedVulns.length > 0;
+  const shouldRender = serverVulns.length > 0 || shouldRenderParsed;
 
-  if (isAI && effectiveVulns.length > 0) {
-    const vulnerabilities = [...effectiveVulns];
+  if (isAI && shouldRender) {
+    const vulnerabilities = serverVulns.length > 0 ? [...serverVulns] : [...parsedVulns];
     
     // Sort by severity in descending order
     vulnerabilities.sort((a, b) => b.severity - a.severity);
