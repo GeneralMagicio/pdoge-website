@@ -7,6 +7,11 @@
   --foreground: #171717;
 }
 
+html {
+  /* Prevent layout shift when vertical scrollbar appears/disappears */
+  scrollbar-gutter: stable;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;

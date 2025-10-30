@@ -5,6 +5,7 @@ import Image from 'next/image';
 // import Link from 'next/link';
 import { FC, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 // interface NavItemProps {
 //   href: string;
@@ -40,15 +41,21 @@ const Header: FC = () => {
         <div className="flex items-center flex-shrink-0">
         {/* Logo Section */}
           <div className="flex items-center">
-            <div className="relative w-10 h-10 mr-2">
-              <Image
-                src="/icon.png"
-                alt="Polydoge Logo"
-                fill
-                className="rounded-full"
-              />
-            </div>
-            <span className="text-white font-bold text-xl">PolyDoge</span>
+            <Link href='/'>
+              <div className="flex items-center">
+
+                <div className="relative w-10 h-10 mr-2">
+                  <Image
+                    src="/icon.png"
+                    alt="Polydoge Logo"
+                    fill
+                    className="rounded-full"
+                    />
+                </div>
+                <span className="text-white font-bold text-xl">PolyDoge</span>
+              </div>
+
+            </Link>
             <a target='_blank' href='/ai'>
               <button className='ml-3 hidden sm:inline-flex bg-primary px-3 py-2 text-white rounded-md font-bold hover:bg-purple-600'> AI Model </button>
             </a>
@@ -89,6 +96,14 @@ const Header: FC = () => {
               Scan
             </button>
           </form>
+        </div>
+        {/* Desktop right actions */}
+        <div className="ml-auto hidden md:flex items-center gap-2">
+          <a href="/leaderboard" aria-label="Leaderboard" className="text-white/90 hover:text-white p-2 rounded-md hover:bg-white/10 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden="true">
+              <path d="M8 3a1 1 0 0 1 1 1v16a1 1 0 0 1-2 0V4a1 1 0 0 1 1-1Zm7 4a1 1 0 0 1 1 1v12a1 1 0 1 1-2 0V8a1 1 0 0 1 1-1ZM12.5 10a1 1 0 0 1 1 1v9a1 1 0 1 1-2 0v-9a1 1 0 0 1 1-1Z"/>
+            </svg>
+          </a>
         </div>
       </header>
 
