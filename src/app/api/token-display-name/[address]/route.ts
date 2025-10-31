@@ -11,10 +11,11 @@ function normalizeAddress(address: string): string | null {
 
 export async function GET(
   _req: Request,
-  { params }: { params: { address: string } }
+  { params }: { params: Promise<Record<string, string>>}
 ) {
   try {
-    const normalized = normalizeAddress(params.address);
+    const { address } = await params;
+    const normalized = normalizeAddress(address);
     if (!normalized) {
       return NextResponse.json({ error: 'Invalid address' }, { status: 400 });
     }
