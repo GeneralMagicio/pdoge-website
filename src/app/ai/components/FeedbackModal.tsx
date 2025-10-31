@@ -68,7 +68,11 @@ export default function FeedbackModal({ open, onClose, messages }: FeedbackModal
         onClose();
       }, 1000);
     } catch {
-      setError('Something went wrong. Please try again.');
+      setSubmitted(true);
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+      // setError('Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
     }
