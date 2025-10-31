@@ -11,7 +11,7 @@ const Landing = () => {
       <div className="sticky top-0 z-[8]">
         <Header/>
       </div>
-      <div className="flex flex-col justify-center items-center relative w-full h-[94vh]">
+      <div className="flex flex-col justify-center items-center relative w-full h-[95vh]">
         <div className="w-[26vw] h-[26vw] mt-[-25vh] relative z-[4]">
           <Image layout="fill"  src={"/pdogecoin_money.png"} alt="pdoge"/>
         </div>
