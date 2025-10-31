@@ -464,7 +464,7 @@ export async function performAnalysis(input: AnalysisInput): Promise<AnalysisRes
   ];
 
   const response = await openai.chat.completions.create({
-    model: 'gpt-4.1-mini',
+    model: 'gpt-5-mini',
     messages: chatMessages as ChatCompletionMessageParam[],
     response_format: { type: 'json_object' },
     max_completion_tokens: 5000,
