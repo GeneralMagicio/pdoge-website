@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { axiosInstance } from '@/app/lib/api';
+import { useAuth } from '@/app/auth/AuthContext';
 
 interface SimpleMessage {
   role: 'user' | 'assistant';
@@ -19,6 +21,7 @@ export default function FeedbackModal({ open, onClose, messages }: FeedbackModal
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { ensureSignedIn } = useAuth();
 
   useEffect(() => {
     if (open) {
@@ -44,35 +47,55 @@ export default function FeedbackModal({ open, onClose, messages }: FeedbackModal
     setError(null);
 
     try {
-      const payload = {
-        type: 'ai_feedback',
-        comment: feedback.trim(),
-        contact: contact.trim() || undefined,
-        messages,
-        page: typeof window !== 'undefined' ? window.location.href : undefined,
-        createdAt: new Date().toISOString(),
-      };
-
-      const res = await fetch('/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to send feedback');
+      // Ensure the user is signed in for authenticated endpoint
+      const ok = await ensureSignedIn();
+      if (!ok) {
+        setError('Please connect your wallet to send feedback.');
+        return;
       }
 
+      // Build context string expected by backend
+      const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
+      const lines: string[] = [];
+      if (pageUrl) lines.push(`page: ${pageUrl}`);
+      if (contact.trim()) lines.push(`contact: ${contact.trim()}`);
+      if (Array.isArray(messages) && messages.length) {
+        lines.push('chat:');
+        for (const m of messages) {
+          const role = m?.role || 'user';
+          const content = (m?.content || '').toString();
+          lines.push(`${role}: ${content}`);
+        }
+      }
+      const context = lines.join('\n');
+
+      await axiosInstance.post('/feedback', {
+        feedback: feedback.trim(),
+        context,
+      });
+
       setSubmitted(true);
       setTimeout(() => {
         onClose();
       }, 1000);
-    } catch {
-      setSubmitted(true);
-      setTimeout(() => {
-        onClose();
-      }, 1000);
-      // setError('Something went wrong. Please try again.');
+    } catch (err: unknown) {
+      // Surface meaningful server error message if available
+      let message = 'Failed to send feedback. Please try again.';
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const axErr = err as any;
+        const respData = axErr?.response?.data;
+        const respMsg = typeof respData === 'string' ? respData
+          : Array.isArray(respData?.message) ? respData.message.join(', ')
+          : respData?.message;
+        if (respMsg) message = respMsg.toString();
+        if (axErr?.response?.status === 401) {
+          message = 'Unauthorized. Please sign in and try again.';
+        }
+      } catch {
+        // ignore parse errors
+      }
+      setError(message);
     } finally {
       setSubmitting(false);
     }
