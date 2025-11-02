@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { EASNetworks } from '@/app/ai/components/EAS';
 import Header from '../header';
 import { useAuth } from '@/app/auth/AuthContext';
-import { axiosInstance, getBackendUrl } from '@/app/lib/api';
+import { axiosInstance } from '@/app/lib/api';
 import type { Address } from 'viem';
 import { createPublicClient, http } from 'viem';
 import { mainnet, polygon, sepolia } from 'wagmi/chains';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 type AttestationItem = {
   uid: string;
@@ -16,8 +17,8 @@ type AttestationItem = {
   contractAddress: string | null;
 };
 
-type Votes = Record<string, 'up' | 'down' | null>;
-type VoteCounts = Record<string, { up: number; down: number }>; // local-only counts
+type UserVotesMap = Record<string, 'up' | 'down'>; // keyed by tokenAddress
+type AggregateVotesMap = Record<string, number>; // keyed by tokenAddress
 
 const shorten = (addr: string, size = 4) => `${addr.slice(0, 2 + size)}…${addr.slice(-size)}`;
 
@@ -42,10 +43,45 @@ export default function CommunityPage() {
 
   const [ensCache, setEnsCache] = useState<Record<string, string>>({});
   const [tokenNameCache, setTokenNameCache] = useState<Record<string, string>>({});
+  const { ensureSignedIn, isSignedIn, address } = useAuth();
+  const queryClient = useQueryClient();
 
-  const [votes, setVotes] = useState<Votes>({});
-  const [voteCounts, setVoteCounts] = useState<VoteCounts>({});
-  const { ensureSignedIn } = useAuth();
+  // React Query store for user votes per token address
+  const { data: userVotes = {} } = useQuery<UserVotesMap>({
+    queryKey: ['userVotes', (address || '').toLowerCase()],
+    queryFn: async () => {
+      try {
+        const res = await axiosInstance.get('/votes/me');
+        const arr = Array.isArray(res?.data) ? res.data as Array<{ tokenAddress: string; direction: 'UP' | 'DOWN' }> : [];
+        const map: UserVotesMap = {};
+        for (const item of arr) {
+          const k = item.tokenAddress.toLowerCase();
+          const dir: 'up' | 'down' = item.direction.toLowerCase() === 'down' ? 'down' : 'up';
+          if (k) map[k] = dir;
+        }
+        return map;
+      } catch {
+        // If unauthorized or any error, treat as no votes
+        return {} as UserVotesMap;
+      }
+    },
+    enabled: !!isSignedIn && !!address,
+  });
+
+  // Aggregated vote scores per token address from backend
+  const { data: aggregates = {} } = useQuery<AggregateVotesMap>({
+    queryKey: ['voteAggregates'],
+    queryFn: async () => {
+      const res = await axiosInstance.get('/votes/aggregate');
+      const raw = (res?.data || {}) as Record<string, number>;
+      const normalized: AggregateVotesMap = {};
+      for (const [k, v] of Object.entries(raw)) {
+        normalized[k.toLowerCase()] = Number(v) || 0;
+      }
+      return normalized;
+    },
+    refetchOnWindowFocus: false,
+  });
 
   // Public client for token name resolution (ERC20 name())
   const viemClient = useMemo(() => {
@@ -53,49 +89,18 @@ export default function CommunityPage() {
     return createPublicClient({ chain, transport: http() });
   }, [desiredChainId]);
 
-  useEffect(() => {
-    try {
-      const savedVotes = JSON.parse(localStorage.getItem('pdoge_votes') || '{}') as Votes;
-      const savedCounts = JSON.parse(localStorage.getItem('pdoge_vote_counts') || '{}') as VoteCounts;
-      setVotes(savedVotes);
-      setVoteCounts(savedCounts);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const persistVotes = (nextVotes: Votes, nextCounts: VoteCounts) => {
-    setVotes(nextVotes);
-    setVoteCounts(nextCounts);
-    try {
-      localStorage.setItem('pdoge_votes', JSON.stringify(nextVotes));
-      localStorage.setItem('pdoge_vote_counts', JSON.stringify(nextCounts));
-    } catch {
-      // ignore
-    }
-  };
-
-  const onVote = (uid: string, direction: 'up' | 'down') => {
-    const prev = votes[uid] || null;
-    const counts = { up: voteCounts[uid]?.up || 0, down: voteCounts[uid]?.down || 0 };
-    let next: 'up' | 'down' | null = direction;
-
-    if (prev === direction) {
-      // toggle off
-      if (direction === 'up') counts.up = Math.max(0, counts.up - 1);
-      else counts.down = Math.max(0, counts.down - 1);
-      next = null;
-    } else {
-      // switch or set
-      if (prev === 'up') counts.up = Math.max(0, counts.up - 1);
-      if (prev === 'down') counts.down = Math.max(0, counts.down - 1);
-      if (direction === 'up') counts.up += 1; else counts.down += 1;
-    }
-
-    const nextVotes = { ...votes, [uid]: next };
-    const nextCounts = { ...voteCounts, [uid]: counts };
-    persistVotes(nextVotes, nextCounts);
-  };
+  const voteMutation = useMutation({
+    mutationFn: async ({ tokenAddress, direction }: { tokenAddress: string; direction: 'up' | 'down' }) => {
+      const res = await axiosInstance.post('/votes', { tokenAddress, direction });
+      return res.data as { tokenAddress: string; direction: 'up' | 'down' };
+    },
+    onSuccess: (data) => {
+      const addr = (data.tokenAddress || '').toLowerCase();
+      const userVotesKey = ['userVotes', (address || '').toLowerCase()];
+      queryClient.setQueryData<UserVotesMap>(userVotesKey, (prev) => ({ ...(prev || {}), [addr]: data.direction }));
+      queryClient.invalidateQueries({ queryKey: ['voteAggregates'] });
+    },
+  });
 
   const onVoteClick = async (it: AttestationItem, direction: 'up' | 'down') => {
     try {
@@ -107,8 +112,9 @@ export default function CommunityPage() {
         setError('Cannot vote: missing token address');
         return;
       }
-      await axiosInstance.post('/votes', { tokenAddress: ca, direction });
-      onVote(it.uid, direction);
+      await voteMutation.mutateAsync({ tokenAddress: ca, direction });
+      queryClient.refetchQueries({ queryKey: ['voteAggregates'] });
+      queryClient.refetchQueries({ queryKey: ['userVotes', (address || '').toLowerCase()] });
     } catch (e: unknown) {
       setError((e as { message?: string })?.message || 'Failed to submit vote');
     }
@@ -336,8 +342,9 @@ export default function CommunityPage() {
             const ens = ensCache[attester];
             const ca = (it.contractAddress || '').toLowerCase();
             const tokenName = ca ? tokenNameCache[ca] : undefined;
-            const voted = votes[it.uid] || null;
-            const counts = voteCounts[it.uid] || { up: 0, down: 0 };
+            const userVote = isSignedIn && ca ? userVotes[ca] || null : null;
+            const score = ca ? (aggregates[ca] ?? 0) : 0;
+            const scoreClass = score > 0 ? 'text-green-400' : score < 0 ? 'text-red-400' : 'text-gray-400';
             const time = it.time ? new Date(it.time * 1000) : null;
             const timeText = time ? time.toLocaleString() : '';
 
@@ -392,7 +399,7 @@ export default function CommunityPage() {
                       type="button"
                       onClick={() => void onVoteClick(it, 'up')}
                       className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-sm transition-colors ${
-                        voted === 'up'
+                        userVote === 'up'
                           ? 'border-[#115701] bg-[#115701] text-white'
                           : 'border-gray-700 bg-black hover:bg-gray-900 text-gray-200'
                       }`}
@@ -402,13 +409,13 @@ export default function CommunityPage() {
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
                         <path d="M2 10a2 2 0 0 1 2-2h4.28l.82-3.28A3 3 0 0 1 12.99 2h.76c.89 0 1.6.72 1.6 1.6V8h3.64a2 2 0 0 1 1.98 2.32l-1 6A2 2 0 0 1 18 18H9a2 2 0 0 1-2-2v-6H4a2 2 0 0 1-2-2Z"/>
                       </svg>
-                      <span>{counts.up}</span>
                     </button>
+                    <span className={`min-w-[2rem] text-center text-sm ${scoreClass}`}>{score}</span>
                     <button
                       type="button"
                       onClick={() => void onVoteClick(it, 'down')}
                       className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-sm transition-colors ${
-                        voted === 'down'
+                        userVote === 'down'
                           ? 'border-red-500 bg-red-600 text-white'
                           : 'border-gray-700 bg-black hover:bg-gray-900 text-gray-200'
                       }`}
@@ -418,7 +425,6 @@ export default function CommunityPage() {
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
                         <path d="M22 14a2 2 0 0 1-2 2h-4.28l-.82 3.28A3 3 0 0 1 11.01 22h-.76a1.6 1.6 0 0 1-1.6-1.6V16H4.99a2 2 0 0 1-1.98-2.32l1-6A2 2 0 0 1 6 6h9a2 2 0 0 1 2 2v6h3a2 2 0 0 1 2 2Z"/>
                       </svg>
-                      <span>{counts.down}</span>
                     </button>
                   </div>
                 </div>

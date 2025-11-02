@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAccount, useSignMessage } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { axiosInstance, getBackendUrl } from '@/app/lib/api';
@@ -37,11 +37,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // If wallet disconnects, clear signed-in state
+  // Only clear token when transitioning from connected -> disconnected (avoid clearing on initial mount)
+  const wasConnectedRef = useRef<boolean>(false);
   useEffect(() => {
-    if (!isConnected) {
+    if (isConnected) {
+      wasConnectedRef.current = true;
+      return;
+    }
+    if (wasConnectedRef.current) {
       setAccessToken(null);
       try { localStorage.removeItem(accessTokenKey); } catch { /* ignore */ }
+      wasConnectedRef.current = false;
     }
   }, [isConnected]);
 
