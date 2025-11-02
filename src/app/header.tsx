@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { FC, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from './auth/AuthContext';
 
 // interface NavItemProps {
 //   href: string;
@@ -36,6 +37,7 @@ const Header: FC = () => {
   };
 
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const { statusLabel, isConnected, isSignedIn, connectWallet, signIn } = useAuth();
 
   return (
     <>
@@ -115,6 +117,21 @@ const Header: FC = () => {
               <path d="M8 3a1 1 0 0 1 1 1v16a1 1 0 0 1-2 0V4a1 1 0 0 1 1-1Zm7 4a1 1 0 0 1 1 1v12a1 1 0 1 1-2 0V8a1 1 0 0 1 1-1ZM12.5 10a1 1 0 0 1 1 1v9a1 1 0 1 1-2 0v-9a1 1 0 0 1 1-1Z"/>
             </svg>
           </a>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!isConnected) {
+                await connectWallet();
+                return;
+              }
+              if (!isSignedIn) {
+                await signIn();
+              }
+            }}
+            className="ml-1 bg-[#9654d2] hover:bg-[#8548c8] text-white font-semibold px-3 py-2 rounded-md transition-colors"
+          >
+            {statusLabel}
+          </button>
         </div>
       </header>
 

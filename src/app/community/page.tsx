@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { EASNetworks } from '@/app/ai/components/EAS';
 import Header from '../header';
+import { useAuth } from '@/app/auth/AuthContext';
+import { axiosInstance, getBackendUrl } from '@/app/lib/api';
 import type { Address } from 'viem';
 import { createPublicClient, http } from 'viem';
 import { mainnet, polygon, sepolia } from 'wagmi/chains';
@@ -43,6 +45,7 @@ export default function CommunityPage() {
 
   const [votes, setVotes] = useState<Votes>({});
   const [voteCounts, setVoteCounts] = useState<VoteCounts>({});
+  const { ensureSignedIn } = useAuth();
 
   // Public client for token name resolution (ERC20 name())
   const viemClient = useMemo(() => {
@@ -92,6 +95,23 @@ export default function CommunityPage() {
     const nextVotes = { ...votes, [uid]: next };
     const nextCounts = { ...voteCounts, [uid]: counts };
     persistVotes(nextVotes, nextCounts);
+  };
+
+  const onVoteClick = async (it: AttestationItem, direction: 'up' | 'down') => {
+    try {
+      setError(null);
+      const ok = await ensureSignedIn();
+      if (!ok) return;
+      const ca = (it.contractAddress || '').toLowerCase();
+      if (!/^0x[0-9a-fA-F]{40}$/.test(ca)) {
+        setError('Cannot vote: missing token address');
+        return;
+      }
+      await axiosInstance.post('/votes', { tokenAddress: ca, direction });
+      onVote(it.uid, direction);
+    } catch (e: unknown) {
+      setError((e as { message?: string })?.message || 'Failed to submit vote');
+    }
   };
 
   const fetchAttestations = async (first: number, skip: number) => {
@@ -370,7 +390,7 @@ export default function CommunityPage() {
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
-                      onClick={() => onVote(it.uid, 'up')}
+                      onClick={() => void onVoteClick(it, 'up')}
                       className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-sm transition-colors ${
                         voted === 'up'
                           ? 'border-[#115701] bg-[#115701] text-white'
@@ -386,7 +406,7 @@ export default function CommunityPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => onVote(it.uid, 'down')}
+                      onClick={() => void onVoteClick(it, 'down')}
                       className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-sm transition-colors ${
                         voted === 'down'
                           ? 'border-red-500 bg-red-600 text-white'
