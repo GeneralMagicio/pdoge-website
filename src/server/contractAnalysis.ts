@@ -3,6 +3,8 @@ import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  timeout: 5 * 60 * 1000, // 5 minutes - matches maxDuration
+  maxRetries: 2,
 });
 
 const SYSTEM_PROMPT = `You are a cryptocurrency token contract security analyzer. Your task: identify vulnerabilities and fishy parts using contract code first (if available), and use on-chain token metadata for context.
@@ -459,8 +461,8 @@ export async function performAnalysis(input: AnalysisInput): Promise<AnalysisRes
 
   const chatMessages = [
     { role: 'system', content: SYSTEM_PROMPT },
-    ...messages.slice(-4),
-    { role: 'user', content: process.env.NODE_ENV === 'development' ? finalUserContent.slice(0, 1500) : finalUserContent }
+    ...(messages || []).slice(-4),
+    { role: 'user', content: finalUserContent }
   ];
 
   const response = await openai.chat.completions.create({
