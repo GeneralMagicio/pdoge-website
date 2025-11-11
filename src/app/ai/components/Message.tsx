@@ -290,7 +290,7 @@ export default function Message({ message }: MessageProps) {
     messageContent = (
       <div className="space-y-4">
         {Array.isArray(message.metrics) && message.metrics.length > 0 && (
-          <TopMetricsBox metrics={message.metrics} />
+          <TopMetricsBox metrics={message.metrics} token={message.token || null} />
         )}
         {message.verdictLine && (
           <VerdictBanner verdictLine={message.verdictLine} />

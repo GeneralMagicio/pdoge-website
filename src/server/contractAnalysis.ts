@@ -3,7 +3,6 @@ import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  timeout: 5 * 60 * 1000, // 5 minutes - matches maxDuration
   maxRetries: 2,
 });
 
@@ -466,7 +465,7 @@ export async function performAnalysis(input: AnalysisInput): Promise<AnalysisRes
   ];
 
   const response = await openai.chat.completions.create({
-    model: 'gpt-5-mini',
+    model: process.env.NODE_ENV === "development" ? 'gpt-4.1-nano' : 'gpt-5-mini',
     messages: chatMessages as ChatCompletionMessageParam[],
     response_format: { type: 'json_object' },
     max_completion_tokens: 5000,

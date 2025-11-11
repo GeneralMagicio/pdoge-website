@@ -7,6 +7,7 @@ import { FC, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from './auth/AuthContext';
+import axios from 'axios';
 
 // interface NavItemProps {
 //   href: string;
@@ -28,12 +29,29 @@ const Header: FC = () => {
   const pathname = usePathname();
   const onAiPage = pathname?.startsWith('/ai');
   const [query, setQuery] = useState('');
+  const [luckyLoading, setLuckyLoading] = useState(false);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const value = query.trim();
     if (!value) return;
     router.push(`/ai?q=${encodeURIComponent(value)}`);
+  };
+
+  const onLuckyClick = async () => {
+    try {
+      setLuckyLoading(true);
+      const res = await axios.get<{ address: string; source?: string }>(
+        '/api/trending-token'
+      );
+      const address = res.data?.address as string | undefined;
+      if (!address) throw new Error('no-address');
+      router.push(`/ai?q=${encodeURIComponent(address)}`);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLuckyLoading(false);
+    }
   };
 
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
@@ -87,22 +105,34 @@ const Header: FC = () => {
         {/* Global Search - absolutely centered on md+ */}
         {!onAiPage && (
           <div className="hidden md:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl z-10">
-            <form onSubmit={onSubmit} className="relative w-full">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Paste in a token address or any link"
-                aria-label="Enter token address or link"
-                className="w-full rounded-lg border border-gray-700 bg-black text-white placeholder-gray-400 pr-28 pl-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent"
-              />
+            <div className="flex items-center gap-2">
               <button
-                type="submit"
-                className="absolute right-1 top-1 bottom-1 bg-[#9654d2] hover:bg-[#8548c8] text-white font-semibold px-5 rounded-md transition-colors"
+                type="button"
+                onClick={onLuckyClick}
+                disabled={luckyLoading}
+                className="shrink-0 bg-white/10 hover:bg-white/20 text-white font-semibold px-3 py-3 rounded-md transition-colors whitespace-nowrap disabled:opacity-60"
+                aria-label="I'm Feeling Lucky"
+                title="I'm Feeling Lucky"
               >
-                Scan
+                {luckyLoading ? 'Trend Roulette…' : "Trend Roulette"}
               </button>
-            </form>
+              <form onSubmit={onSubmit} className="relative w-full">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Paste in a token address or any link"
+                  aria-label="Enter token address or link"
+                  className="w-full rounded-lg border border-gray-700 bg-black text-white placeholder-gray-400 pr-28 pl-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                />
+                <button
+                  type="submit"
+                  className="absolute right-1 top-1 bottom-1 bg-[#9654d2] hover:bg-[#8548c8] text-white font-semibold px-5 rounded-md transition-colors"
+                >
+                  Scan
+                </button>
+              </form>
+            </div>
           </div>
         )}
         {/* Desktop right actions */}
@@ -138,22 +168,34 @@ const Header: FC = () => {
       {/* Mobile search panel under the header */}
       {!onAiPage && (
         <div className={`md:hidden ${mobileSearchOpen ? 'block' : 'hidden'} bg-black border-t border-gray-800 px-4 py-3`}>
-          <form onSubmit={onSubmit} className="relative w-full">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Paste in a token address or any link"
-              aria-label="Enter token address or link"
-              className="w-full rounded-lg border border-gray-700 bg-black text-white placeholder-gray-400 pr-28 pl-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent"
-            />
+          <div className="flex items-center gap-2">
             <button
-              type="submit"
-              className="absolute right-1 top-1 bottom-1 bg-[#9654d2] hover:bg-[#8548c8] text-white font-semibold px-5 rounded-md transition-colors"
+              type="button"
+              onClick={onLuckyClick}
+              disabled={luckyLoading}
+              className="shrink-0 bg-white/10 hover:bg-white/20 text-white font-semibold px-3 py-3 rounded-md transition-colors whitespace-nowrap disabled:opacity-60"
+              aria-label="I'm Feeling Lucky"
+              title="I'm Feeling Lucky"
             >
-              Scan
+              {luckyLoading ? 'Trend Roulette…' : "Trend Roulette"}
             </button>
-          </form>
+            <form onSubmit={onSubmit} className="relative w-full">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Paste in a token address or any link"
+                aria-label="Enter token address or link"
+                className="w-full rounded-lg border border-gray-700 bg-black text-white placeholder-gray-400 pr-28 pl-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+              />
+              <button
+                type="submit"
+                className="absolute right-1 top-1 bottom-1 bg-[#9654d2] hover:bg-[#8548c8] text-white font-semibold px-5 rounded-md transition-colors"
+              >
+                Scan
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </>
