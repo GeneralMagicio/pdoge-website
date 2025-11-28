@@ -6,6 +6,139 @@ const openai = new OpenAI({
   maxRetries: 2,
 });
 
+// Backend API base URL for caching
+const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL || '').trim().replace(/\/$/, '');
+
+// Types for cache API
+interface CachedMetric {
+  key: string;
+  label: string;
+  value: string;
+}
+
+interface CachedVulnerability {
+  severity: number;
+  text: string;
+}
+
+interface CachedAnalysis {
+  id: string;
+  tokenAddress: string;
+  tokenName?: string | null;
+  tokenSymbol?: string | null;
+  verdictLine?: string | null;
+  content: string;
+  metrics?: CachedMetric[] | null;
+  vulnerabilities?: CachedVulnerability[] | null;
+  metadata?: Record<string, unknown> | null;
+  aiModel?: string | null;
+  analysisType?: string | null;
+  trendScore: number;
+  trendingUntil?: string | null;
+  isTrending: boolean;
+  lastTweetedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Check if a cached analysis exists for the given token address
+ */
+async function getCachedAnalysis(tokenAddress: string): Promise<CachedAnalysis | null> {
+  if (!BACKEND_URL) {
+    console.warn('Backend URL not configured, skipping cache check');
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/token-analyses/token/${tokenAddress.toLowerCase()}`);
+    if (!response.ok) {
+      return null;
+    }
+    const data = await response.json();
+    // API returns null if no analysis exists
+    return data || null;
+  } catch (error) {
+    console.error('Error fetching cached analysis:', error);
+    return null;
+  }
+}
+
+/**
+ * Store an analysis result in the cache
+ */
+async function storeAnalysisInCache(params: {
+  tokenAddress: string;
+  tokenName?: string;
+  tokenSymbol?: string;
+  content: string;
+  verdictLine?: string | null;
+  metrics?: TopMetric[];
+  vulnerabilities?: Array<{ severity: number; description: string }>;
+}): Promise<void> {
+  if (!BACKEND_URL) {
+    console.warn('Backend URL not configured, skipping cache store');
+    return;
+  }
+
+  try {
+    const payload = {
+      tokenAddress: params.tokenAddress.toLowerCase(),
+      tokenName: params.tokenName,
+      tokenSymbol: params.tokenSymbol,
+      content: params.content,
+      verdictLine: params.verdictLine,
+      metrics: params.metrics,
+      vulnerabilities: params.vulnerabilities?.map(v => ({
+        severity: v.severity,
+        text: v.description,
+      })),
+      aiModel: process.env.NODE_ENV === 'development' ? 'gpt-4.1-nano' : 'gpt-5-mini',
+      analysisType: 'contract',
+      isTrending: true,
+    };
+
+    const response = await fetch(`${BACKEND_URL}/token-analyses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to store analysis in cache:', response.status, await response.text());
+    }
+  } catch (error) {
+    console.error('Error storing analysis in cache:', error);
+  }
+}
+
+/**
+ * Convert a cached analysis to the AnalysisResult format
+ */
+function cachedToAnalysisResult(cached: CachedAnalysis): AnalysisResult {
+  const vulnerabilities: Array<Required<{ severity: number; description: string }>> = 
+    (cached.vulnerabilities || []).map(v => ({
+      severity: v.severity,
+      description: v.text,
+    }));
+
+  const message = vulnerabilities.length
+    ? `${vulnerabilities.length} vulnerabilities found. See structured details below.`
+    : 'No clear vulnerabilities identified from available data. See verdict and metrics.';
+
+  return {
+    message,
+    metrics: cached.metrics || [],
+    token: {
+      address: cached.tokenAddress,
+      name: cached.tokenName || undefined,
+      symbol: cached.tokenSymbol || undefined,
+    },
+    vulnerabilities,
+    verdictLine: cached.verdictLine || null,
+  };
+}
+
 const SYSTEM_PROMPT = `You are a cryptocurrency token contract security analyzer. Your task: identify vulnerabilities and fishy parts using contract code first (if available), and use on-chain token metadata for context.
 
 Follow these rules strictly:
@@ -387,6 +520,14 @@ export async function performAnalysis(input: AnalysisInput): Promise<AnalysisRes
   if (isAddress(content)) {
     const address = content.trim();
 
+    // Check cache first before making any API calls
+    const cachedAnalysis = await getCachedAnalysis(address);
+    if (cachedAnalysis) {
+      console.log(`Cache hit for token ${address}`);
+      return cachedToAnalysisResult(cachedAnalysis);
+    }
+    console.log(`Cache miss for token ${address}, fetching fresh analysis`);
+
     const dexData = await fetchDexScreener(address);
 
     tokenInfo = {
@@ -525,13 +666,29 @@ export async function performAnalysis(input: AnalysisInput): Promise<AnalysisRes
     ? `${uiVulns.length} vulnerabilities found. See structured details below.`
     : 'No clear vulnerabilities identified from available data. See verdict and metrics.';
 
-  return {
+  const result: AnalysisResult = {
     message: humanMessage,
     metrics: topMetrics || [],
     token: tokenInfo || null,
     vulnerabilities: uiVulns,
     verdictLine: verdictLine || null,
   };
+
+  // Store in cache if this was an address-based analysis
+  if (tokenInfo?.address) {
+    // Don't await - fire and forget to not slow down the response
+    storeAnalysisInCache({
+      tokenAddress: tokenInfo.address,
+      tokenName: tokenInfo.name,
+      tokenSymbol: tokenInfo.symbol,
+      content: humanMessage,
+      verdictLine: verdictLine,
+      metrics: topMetrics,
+      vulnerabilities: uiVulns,
+    }).catch(err => console.error('Background cache store failed:', err));
+  }
+
+  return result;
 }
 
 
